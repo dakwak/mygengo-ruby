@@ -8,6 +8,8 @@ module MyGengo
 			@opstat = opstat
 			@code = code
 			@msg = msg
+
+			puts msg
 		end
 	end
 end

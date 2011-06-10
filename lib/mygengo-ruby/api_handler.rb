@@ -49,7 +49,9 @@ module MyGengo
 					"#{k}=#{CGI::escape(v)}"
 				end * '&'
 			end
-
+			
+			# This will be faster, but is more work for an end user to maintain. :(
+			#OpenSSL::HMAC.digest(OpenSSL::Digest::Digest.new('sha1'), @opts[:private_key], params)
 			HMAC::SHA1.hexdigest @opts[:private_key], params
 		end
 
@@ -59,22 +61,21 @@ module MyGengo
 		# Options:
 		# <tt>endpoint</tt> - String/URL to request data from.
 		# <tt>params</tt> - Data necessary for request (keys, etc). Generally taken care of by the requesting instance.
-		def get_from_mygengo(endpoint, params = nil)
+		def get_from_mygengo(endpoint, params = {})
 			# The first part of the object we're going to encode and use in our request to myGengo. The signing process
 			# is a little annoying at the moment, so bear with us...
-			query = {
-				"api_key" => @opts[:public_key],
-				"data" = params.to_json,
-				"ts" => Time.now.gmtime.to_i.to_s
-			}
-			
-			
-			query.merge!('api_sig' => signature_of(query))
+			query = {}
+			query["api_key"] = @opts[:public_key]
+			query["data"] = params.to_json if !params.empty?
+			query["ts"] = Time.now.gmtime.to_i.to_s
+
+			query.merge!("api_sig" => signature_of(query))
 			
 			endpoint << '?' + query.map { |k, v| "#{k}=#{CGI::escape(v)}" }.join('&')	
 			api_url = URI.parse(@api_host + endpoint);
 
 			resp = Net::HTTP.start(api_url.host, api_url.port) do |http|
+			puts api_url.request_uri
 				http.request(Net::HTTP::Get.new(api_url.request_uri, {
 					'Accept' => 'application/json', 
 					'User-Agent' => @opts[:user_agent]
@@ -113,17 +114,16 @@ module MyGengo
 				data[:comment] = params[:comment]
 			elsif !params[:update].nil?
 				# Less confusing for people. ;P
-				data[:update] => params[:action]
+				data[:update] = params[:action]
 			end
 
 			# The first part of the object we're going to encode and use in our request to myGengo. The signing process
 			# is a little annoying at the moment, so bear with us...
 			query = {
 				"api_key" => @opts[:public_key],
-				"data" => data,
 				"ts" => Time.now.gmtime.to_i.to_s
 			}
-			
+			query["data"] = data if !data.empty?
 			query.merge!('api_sig' => signature_of(query.to_json))
 			
 			api_url = URI.parse(@api_host + endpoint);
