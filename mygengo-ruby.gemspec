@@ -6,6 +6,7 @@ Gem::Specification.new do |gs|
 	gs.authors = [
 		"Ryan McGrath <ryan@mygengo.com>",
 		"Matthew Romaine <matt@mygengo.com>",
+		"Kim Ahlstrom",
 	]
 	gs.date = "2011-05-10"
 	gs.summary = "A library for interfacing with the myGengo API."
