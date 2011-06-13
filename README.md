@@ -10,7 +10,7 @@ Installation & Requirements
 -------------------------------------------------------------------------------------------------------
 Installing myGengo is fairly simple:
 
-    gem install mygengo
+    gem install mygengo-ruby
 
 
 Tests - Running Them, etc
