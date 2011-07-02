@@ -35,7 +35,7 @@ module MyGengo
 
 			# Let's go ahead and separate these out, for clarity...
 			@debug = @opts[:debug]
-			@api_host = (@opts[:sandbox] == true ? MyGengo::Config::SANDBOX_API_HOST : MyGengo::Config::API_HOST) + "v#{@opts[:api_version]}/"
+			@api_host = (@opts[:sandbox] == true ? MyGengo::Config::SANDBOX_API_HOST : MyGengo::Config::API_HOST)
 
 			# More of a public "check this" kind of object.
 			@client_info = {"VERSION" => MyGengo::Config::VERSION}
@@ -44,14 +44,12 @@ module MyGengo
 		# Creates an HMAC::SHA1 signature, signing the request with the private key.
 		def signature_of(params)
 			if Hash === params
-				sorted_keys = params.keys.sort
+				sorted_keys = params.keys.sort_by(&:to_s)
 				params = sorted_keys.zip(params.values_at(*sorted_keys)).map do |k, v|
 					"#{k}=#{CGI::escape(v)}"
 				end * '&'
 			end
 			
-			# This will be faster, but is more work for an end user to maintain. :(
-			#OpenSSL::HMAC.digest(OpenSSL::Digest::Digest.new('sha1'), @opts[:private_key], params)
 			HMAC::SHA1.hexdigest @opts[:private_key], params
 		end
 
@@ -64,19 +62,16 @@ module MyGengo
 		def get_from_mygengo(endpoint, params = {})
 			# The first part of the object we're going to encode and use in our request to myGengo. The signing process
 			# is a little annoying at the moment, so bear with us...
-			query = {}
-			query["api_key"] = @opts[:public_key]
-			query["data"] = params.to_json if !params.empty?
-			query["ts"] = Time.now.gmtime.to_i.to_s
-
-			query.merge!("api_sig" => signature_of(query))
+			query = {
+				:api_key => @opts[:public_key],
+				:ts => Time.now.gmtime.to_i.to_s
+			}
 			
-			endpoint << '?' + query.map { |k, v| "#{k}=#{CGI::escape(v)}" }.join('&')	
-			api_url = URI.parse(@api_host + endpoint);
+			endpoint << "?api_sig=" + signature_of(query)
+			endpoint << '&' + query.map { |k, v| "#{k}=#{CGI::escape(v)}" }.join('&')	
 
-			resp = Net::HTTP.start(api_url.host, api_url.port) do |http|
-			puts api_url.request_uri
-				http.request(Net::HTTP::Get.new(api_url.request_uri, {
+			resp = Net::HTTP.start(@api_host, 80) do |http|
+				http.request(Net::HTTP::Get.new("/v#{@opts[:api_version]}/" + endpoint, {
 					'Accept' => 'application/json', 
 					'User-Agent' => @opts[:user_agent]
 				}))
@@ -104,9 +99,7 @@ module MyGengo
 			data = {}
 
 			# ...strip out job data as we need it.
-			if !params[:job].nil?
-				data[:job] = {:job => params[:job]}
-			elsif !params[:jobs].nil?
+			if !params[:jobs].nil?
 				data[:jobs] = {:jobs => params[:jobs]}
 				data[:process] = params[:process] if !params[:process].nil?
 				data[:as_group] = params[:as_group] if !params[:as_group].nil?
@@ -123,28 +116,37 @@ module MyGengo
 				"api_key" => @opts[:public_key],
 				"ts" => Time.now.gmtime.to_i.to_s
 			}
-			query["data"] = data if !data.empty?
-			query.merge!('api_sig' => signature_of(query.to_json))
+			query["data"] = Hash[params.sort].to_json if !params.empty?
+
+			# Since the myGengo API requires everything to be sorted a specific way, and Ruby 1.8.7 has horrendous support
+			# for doing any kind of key-sorting, we're going to do this a bit differently than the ideal method. ;P
+			payload = '?api_sig=' + signature_of(query)
+			payload << '&api_key=' + CGI::escape(@opts[:public_key])
+			payload << '&data=' + CGI::escape(query["data"])
+			payload << '&ts=' + query["ts"] # Important; hash was calculated off of this, don't get a new one. ;P
+
+			puts payload
+
+			#payload << '&' + query.map { |k, v| "#{k}=#{CGI::escape(v)}" }.join('&')
+			requester = Net::HTTP.new(@api_host, 80)
+			headers = {
+				'Accept' => 'application/json',
+				'User-Agent' => @opts[:user_agent]
+			}
 			
-			api_url = URI.parse(@api_host + endpoint);
+			requester.request_post("/v#{@opts[:api_version]}/" + endpoint, payload, headers) { |resp|
+				resp.read_body do |res|
+					puts res
+					json = JSON.parse(res)
 
-			resp = Net::HTTP.start(api_url.host, api_url.port) do |http|
-				req = Net::HTTP::Post.new(api_url.request_uri, {
-					'Accept' => 'application/json', 
-					'User-Agent' => @opts[:user_agent]
-				})
-				req.set_form_data query
-				http.request(req)
-			end
-			
-			json = JSON.parse(resp.body)
+					if json['opstat'] != 'ok'
+						raise MyGengo::Exception.new(json['opstat'], json['err']['code'].to_i, json['err']['msg'])
+					end
 
-			if json['opstat'] != 'ok'
-				raise MyGengo::Exception.new(json['opstat'], json['err']['code'].to_i, json['err']['msg'])
-			end
-
-			# Return it if there are no problems, nice...
-			json
+					# Return it if there are no problems, nice...
+					json
+				end
+			}
 		end
 
 		# Returns a Ruby-hash of the stats for the current account. No arguments required!
