@@ -7,7 +7,6 @@ require 'cgi'
 require 'json'
 require 'hmac-sha1'
 require 'time'
-require 'pp'
 
 module MyGengo
 	
@@ -114,30 +113,37 @@ module MyGengo
 			# is a little annoying at the moment, so bear with us...
 			query = {
 				"api_key" => @opts[:public_key],
+				"data" => Hash[params.sort].to_json.gsub('/', '\\/'),
 				"ts" => Time.now.gmtime.to_i.to_s
 			}
-			query["data"] = Hash[params.sort].to_json if !params.empty?
-
-			# Since the myGengo API requires everything to be sorted a specific way, and Ruby 1.8.7 has horrendous support
-			# for doing any kind of key-sorting, we're going to do this a bit differently than the ideal method. ;P
-			payload = '?api_sig=' + signature_of(query)
-			payload << '&api_key=' + CGI::escape(@opts[:public_key])
-			payload << '&data=' + CGI::escape(query["data"])
-			payload << '&ts=' + query["ts"] # Important; hash was calculated off of this, don't get a new one. ;P
-
-			puts payload
-
-			#payload << '&' + query.map { |k, v| "#{k}=#{CGI::escape(v)}" }.join('&')
-			requester = Net::HTTP.new(@api_host, 80)
-			headers = {
-				'Accept' => 'application/json',
-				'User-Agent' => @opts[:user_agent]
-			}
 			
-			requester.request_post("/v#{@opts[:api_version]}/" + endpoint, payload, headers) { |resp|
-				resp.read_body do |res|
-					puts res
-					json = JSON.parse(res)
+			puts query["data"]
+
+			url = URI.parse("http://#{@api_host}/v#{@opts[:api_version]}/#{endpoint}")
+			http = Net::HTTP.new(url.host, url.port)
+			request = Net::HTTP::Post.new(url.path)
+	
+			request.add_field('Accept', 'application/json')
+			request.add_field('User-Agent', @opts[:user_agent])
+
+			request.set_form_data({
+				'api_sig' => signature_of(query),
+				'api_key' => CGI::escape(@opts[:public_key]),
+				'data' => query["data"],
+				'ts' => query["ts"] # Important; hash was calculated off of this, don't get a new one. ;P
+			}, '&')
+	
+			if @debug
+				http.set_debug_output($stdout)
+			end
+
+			resp = http.request(request)
+
+			case resp
+				when Net::HTTPSuccess, Net::HTTPRedirection
+					puts resp.body
+
+					json = JSON.parse(resp.body)
 
 					if json['opstat'] != 'ok'
 						raise MyGengo::Exception.new(json['opstat'], json['err']['code'].to_i, json['err']['msg'])
@@ -145,8 +151,9 @@ module MyGengo
 
 					# Return it if there are no problems, nice...
 					json
-				end
-			}
+				else
+					resp.error!
+			end
 		end
 
 		# Returns a Ruby-hash of the stats for the current account. No arguments required!
