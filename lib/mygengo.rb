@@ -11,6 +11,6 @@ module MyGengo
 		SANDBOX_API_HOST = 'api.sandbox.mygengo.com'
 
 		# Pretty self explanatory.
-		VERSION = 1.0
+		VERSION = '1.1'
 	end
 end

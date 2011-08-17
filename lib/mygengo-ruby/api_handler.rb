@@ -26,7 +26,7 @@ module MyGengo
 			@opts = {
 				:public_key => '',
 				:private_key => '',
-				:api_version => '1',
+				:api_version => '1.1',
 				:sandbox => false,
 				:user_agent => "myGengo Ruby Library v#{MyGengo::Config::VERSION}",
 				:debug => false,
@@ -40,16 +40,18 @@ module MyGengo
 			@client_info = {"VERSION" => MyGengo::Config::VERSION}
 		end
 
-		# Creates an HMAC::SHA1 signature, signing the request with the private key.
-		def signature_of(params)
-			if Hash === params
-				sorted_keys = params.keys.sort_by(&:to_s)
-				params = sorted_keys.zip(params.values_at(*sorted_keys)).map do |k, v|
-					"#{k}=#{CGI::escape(v)}"
-				end * '&'
-			end
-			
-			HMAC::SHA1.hexdigest @opts[:private_key], params
+		# This is... hilariously awkward, but Ruby escapes things very differently from PHP/etc. This causes
+		# issues with de-escaping things on the backend over at myGengo; in the future this will become obsolete,
+		# but for now we'll just leave this here...
+		def urlencode(string)
+			string.gsub(/([^ a-zA-Z0-9_.-]+)/n) do
+				'%' + $1.unpack('H2' * $1.size).join('%').upcase
+			end.tr(' ', '+')
+		end
+
+		# Creates an HMAC::SHA1 signature, signing the timestamp with the private key.
+		def signature_of(pk, ts)
+			HMAC::SHA1.hexdigest @opts[:private_key], ts
 		end
 
 		# The "GET" method; handles requesting basic data sets from myGengo and converting
@@ -66,8 +68,8 @@ module MyGengo
 				:ts => Time.now.gmtime.to_i.to_s
 			}
 			
-			endpoint << "?api_sig=" + signature_of(query)
-			endpoint << '&' + query.map { |k, v| "#{k}=#{CGI::escape(v)}" }.join('&')	
+			endpoint << "?api_sig=" + signature_of(query[:api_key], query[:ts])
+			endpoint << '&' + query.map { |k, v| "#{k}=#{urlencode(v)}" }.join('&')	
 
 			resp = Net::HTTP.start(@api_host, 80) do |http|
 				http.request(Net::HTTP::Get.new("/v#{@opts[:api_version]}/" + endpoint, {
@@ -75,7 +77,7 @@ module MyGengo
 					'User-Agent' => @opts[:user_agent]
 				}))
 			end
-			
+
 			json = JSON.parse(resp.body)
 
 			if json['opstat'] != 'ok'
@@ -95,29 +97,11 @@ module MyGengo
 		# <tt>endpoint</tt> - String/URL to post data to.
 		# <tt>params</tt> - Data necessary for request (keys, etc). Generally taken care of by the requesting instance.
 		def send_to_mygengo(endpoint, params = {})
-			data = {}
-
-			# ...strip out job data as we need it.
-			if !params[:jobs].nil?
-				data[:jobs] = {:jobs => params[:jobs]}
-				data[:process] = params[:process] if !params[:process].nil?
-				data[:as_group] = params[:as_group] if !params[:as_group].nil?
-			elsif !params[:comment].nil?
-				data[:comment] = params[:comment]
-			elsif !params[:update].nil?
-				# Less confusing for people. ;P
-				data[:update] = params[:action]
-			end
-
-			# The first part of the object we're going to encode and use in our request to myGengo. The signing process
-			# is a little annoying at the moment, so bear with us...
 			query = {
-				"api_key" => @opts[:public_key],
-				"data" => Hash[params.sort].to_json.gsub('/', '\\/'),
-				"ts" => Time.now.gmtime.to_i.to_s
+				:api_key => @opts[:public_key],
+				:data => params.to_json.gsub('"', '\"'),
+				:ts => Time.now.gmtime.to_i.to_s
 			}
-			
-			puts query["data"]
 
 			url = URI.parse("http://#{@api_host}/v#{@opts[:api_version]}/#{endpoint}")
 			http = Net::HTTP.new(url.host, url.port)
@@ -126,13 +110,14 @@ module MyGengo
 			request.add_field('Accept', 'application/json')
 			request.add_field('User-Agent', @opts[:user_agent])
 
-			request.set_form_data({
-				'api_sig' => signature_of(query),
-				'api_key' => CGI::escape(@opts[:public_key]),
-				'data' => query["data"],
-				'ts' => query["ts"] # Important; hash was calculated off of this, don't get a new one. ;P
-			}, '&')
-	
+			request.content_type = 'application/x-www-form-urlencoded'
+			request.body = {
+				"api_sig" => signature_of(query[:api_key], query[:ts]),
+				"api_key" => urlencode(@opts[:public_key]),
+				"data" => urlencode(params.to_json.gsub('\\', '\\\\')),
+				"ts" => Time.now.gmtime.to_i.to_s
+			}.map { |k, v| "#{k}=#{v}" }.flatten.join('&')
+			
 			if @debug
 				http.set_debug_output($stdout)
 			end
@@ -141,8 +126,6 @@ module MyGengo
 
 			case resp
 				when Net::HTTPSuccess, Net::HTTPRedirection
-					puts resp.body
-
 					json = JSON.parse(resp.body)
 
 					if json['opstat'] != 'ok'
@@ -195,7 +178,7 @@ module MyGengo
 		# Options:
 		# <tt>id</tt> - The ID of a job to update.
 		# <tt>action</tt> - A hash describing the update to this job. See the examples for further documentation.
-		def updateTranslationJob(params = {})		
+		def updateTranslationJob(params = {})
 			self.send_to_mygengo('translate/job/:id'.gsub(':id', params.delete(:id)), params)
 		end
 

@@ -10,7 +10,8 @@ mygengo = MyGengo::API.new({
 	:sandbox => true,
 })
 
-mygengo.updateTranslationJob({:id => 42, :action => {
+mygengo.updateTranslationJob({
+	:id => 42,
 	:action => "reject",
 	:reason => "quality",
 	:comment => "My Grandmother does better.",
