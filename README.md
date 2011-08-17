@@ -10,16 +10,13 @@ Installation & Requirements
 -------------------------------------------------------------------------------------------------------
 Installing myGengo is fairly simple:
 
-    gem install mygengo-ruby
+    gem install mygengo
 
 
 Tests - Running Them, etc
 ------------------------------------------------------------------------------------------------------
-myGengo has a full suite of Unit Tests. To run them, grab the source, head into the mygengo directory, 
-and rake the tests:
-
-    rake test
-
+myGengo has a full suite of tests, however they're not currently automated. Each script in the _examples_
+directory tests a different myGengo API endpoint; run against those if you wish to test for now.
 
 Question, Comments, Complaints, Praise?
 ------------------------------------------------------------------------------------------------------
@@ -34,4 +31,22 @@ If you come across any issues, please file them on the **[Github project issue t
 
 Documentation
 ------------------------------------------------------------------------------------------------------
-Coming shortly. :)
+The usage of the API is very simple - the most important part is getting authenticated. To do this is just
+a few lines of code:
+
+``` ruby
+require 'mygengo'
+
+mygengo = MyGengo::API.new({
+	:public_key => 'your_public_key',
+	:private_key => 'your_private_key',
+	:sandbox => true, # Or false, depending on your work
+})
+
+# Get some information
+puts mygengo.getAccountBalance()
+```
+
+With that, you can call any number of methods supported by this library. The entire library is rdoc supported,
+so you can look at more method information there - there's also a full suite of test code/examples, located in the 'examples'
+directory. Good luck!
