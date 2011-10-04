@@ -182,6 +182,15 @@ module MyGengo
 			self.send_to_mygengo('translate/job/:id'.gsub(':id', params.delete(:id)), params)
 		end
 
+		# Updates a group of already submitted jobs.
+		#
+		# Options:
+		# <tt>jobs</tt> - An Array of job objects to update (job objects or ids)
+		# <tt>action</tt> - A String describing the update to this job. "approved", "rejected", etc - see myGengo docs.
+		def updateTranslationJobs(params = {})
+			self.send_to_mygengo('translate/jobs', {:jobs => params[:jobs], :action => params[:action]})
+		end
+
 		# Given an ID, pulls down information concerning that job from myGengo.
 		#
 		# <tt>id</tt> - The ID of a job to check.
@@ -196,6 +205,10 @@ module MyGengo
 		# <tt>timestamp_after</tt> - Optional. Epoch timestamp from which to filter submitted jobs.
 		# <tt>count</tt> - Optional. Defaults to 10.
 		def getTranslationJobs(params = {})
+			if params[:ids] and params[:ids].kind_of?(Array)
+				params[:ids] = params[:ids].map { |i| i.to_s() }.join(',')
+			end
+
 			self.get_from_mygengo('translate/jobs', params)
 		end
 
@@ -203,7 +216,7 @@ module MyGengo
 		#
 		# <tt>id</tt> - Required, the ID of a job that you want the batch/group of.
 		def getTranslationJobBatch(params = {})
-			self.get_from_mygengo('translate/jobs/:id'.gsub(':id', params.delete(:id)), params)
+			self.get_from_mygengo('translate/jobs/group/:group_id'.gsub(':group_id', params.delete(:group_id)), params)
 		end
 	
 		# Mirrors the bulk Translation call, but just returns an estimated cost.
@@ -267,6 +280,18 @@ module MyGengo
 		# <tt>id</tt> - The ID of the job you want to delete.
 		def deleteTranslationJob(params = {})
 			self.send_to_mygengo('translate/job/:id'.gsub(':id', params.delete(:id)), params)
+		end
+
+		# Deletes multiple jobs.
+		#
+		# Options:
+		# <tt>ids</tt> - An Array of job IDs you want to delete.
+		def deleteTranslationJobs(params = {})
+			if params[:ids] and params[:ids].kind_of?(Array)
+				params[:ids] = params[:ids].map { |i| i.to_s() }.join(',')
+			end
+			
+			self.send_to_mygengo('translate/jobs', params)
 		end
 
 		# Gets information about currently supported language pairs.
