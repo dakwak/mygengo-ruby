@@ -288,7 +288,8 @@ module MyGengo
 		# <tt>ids</tt> - An Array of job IDs you want to delete.
 		def deleteTranslationJobs(params = {})
 			if params[:ids] and params[:ids].kind_of?(Array)
-				params[:ids] = params[:ids].map { |i| i.to_s() }.join(',')
+				params[:job_ids] = params[:ids].map { |i| i.to_s() }.join(',')
+				params.delete(:ids)
 			end
 			
 			self.send_to_mygengo('translate/jobs', params)
