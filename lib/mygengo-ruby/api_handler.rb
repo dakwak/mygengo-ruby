@@ -50,7 +50,7 @@ module MyGengo
 		end
 
 		# Creates an HMAC::SHA1 signature, signing the timestamp with the private key.
-		def signature_of(pk, ts)
+		def signature_of(ts)
 			HMAC::SHA1.hexdigest @opts[:private_key], ts
 		end
 
@@ -68,7 +68,7 @@ module MyGengo
 				:ts => Time.now.gmtime.to_i.to_s
 			}
 			
-			endpoint << "?api_sig=" + signature_of(query[:api_key], query[:ts])
+			endpoint << "?api_sig=" + signature_of(query[:ts])
 			endpoint << '&' + query.map { |k, v| "#{k}=#{urlencode(v)}" }.join('&')	
 
 			resp = Net::HTTP.start(@api_host, 80) do |http|
@@ -112,7 +112,7 @@ module MyGengo
 
 			request.content_type = 'application/x-www-form-urlencoded'
 			request.body = {
-				"api_sig" => signature_of(query[:api_key], query[:ts]),
+				"api_sig" => signature_of(query[:ts]),
 				"api_key" => urlencode(@opts[:public_key]),
 				"data" => urlencode(params.to_json.gsub('\\', '\\\\')),
 				"ts" => Time.now.gmtime.to_i.to_s
