@@ -10,7 +10,7 @@ Installation & Requirements
 -------------------------------------------------------------------------------------------------------
 Installing myGengo is fairly simple:
 
-    gem install ruby-hmac mygengo
+    gem install mygengo
 
 
 Tests - Running Them, etc

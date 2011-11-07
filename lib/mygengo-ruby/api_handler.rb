@@ -5,7 +5,7 @@ require 'net/http'
 require 'uri'
 require 'cgi'
 require 'json'
-require 'hmac-sha1'
+require 'openssl'
 require 'time'
 
 module MyGengo
@@ -51,7 +51,7 @@ module MyGengo
 
 		# Creates an HMAC::SHA1 signature, signing the timestamp with the private key.
 		def signature_of(ts)
-			HMAC::SHA1.hexdigest @opts[:private_key], ts
+			OpenSSL::HMAC.hexdigest 'sha1', @opts[:private_key], ts
 		end
 
 		# The "GET" method; handles requesting basic data sets from myGengo and converting
