@@ -61,7 +61,10 @@ module MyGengo
 		# <tt>endpoint</tt> - String/URL to request data from.
 		# <tt>params</tt> - Data necessary for request (keys, etc). Generally taken care of by the requesting instance.
 		def get_from_mygengo(endpoint, params = {})
-			# The first part of the object we're going to encode and use in our request to myGengo. The signing process
+			# Do this small check here...
+            is_delete = params.delete(:is_delete)
+            
+            # The first part of the object we're going to encode and use in our request to myGengo. The signing process
 			# is a little annoying at the moment, so bear with us...
 			query = {
 				:api_key => @opts[:public_key],
@@ -71,11 +74,20 @@ module MyGengo
 			endpoint << "?api_sig=" + signature_of(query[:ts])
 			endpoint << '&' + query.map { |k, v| "#{k}=#{urlencode(v)}" }.join('&')	
 
+            uri = "/v#{@opts[:api_version]}/" + endpoint
+            headers = {
+                'Accept' => 'application/json',
+                'User-Agent' => @opts[:user_agent]
+            }
+
+            if is_delete
+                req = Net::HTTP::Delete.new(uri, headers)
+            else
+                req = Net::HTTP::Get.new(uri, headers)
+            end
+
 			resp = Net::HTTP.start(@api_host, 80) do |http|
-				http.request(Net::HTTP::Get.new("/v#{@opts[:api_version]}/" + endpoint, {
-					'Accept' => 'application/json', 
-					'User-Agent' => @opts[:user_agent]
-				}))
+				http.request(req)
 			end
 
 			json = JSON.parse(resp.body)
@@ -279,7 +291,8 @@ module MyGengo
 		# Options:
 		# <tt>id</tt> - The ID of the job you want to delete.
 		def deleteTranslationJob(params = {})
-			self.send_to_mygengo('translate/job/:id'.gsub(':id', params.delete(:id).to_s), params)
+            params[:is_delete] = true
+			self.get_from_mygengo('translate/job/:id'.gsub(':id', params.delete(:id).to_s), params)
 		end
 
 		# Deletes multiple jobs.
@@ -292,7 +305,8 @@ module MyGengo
 				params.delete(:ids)
 			end
 			
-			self.send_to_mygengo('translate/jobs', params)
+            params[:is_delete] = true
+			self.get_from_mygengo('translate/jobs', params)
 		end
 
 		# Gets information about currently supported language pairs.
@@ -300,7 +314,7 @@ module MyGengo
 		# Options:
 		# <tt>lc_src</tt> - Optional language code to filter on.
 		def getServiceLanguagePairs(params = {})
-			self.get_from_mygengo('translate/service/language_pairs', params)
+            self.get_from_mygengo('translate/service/language_pairs', params)
 		end
 
 		# Pulls down currently supported languages.
