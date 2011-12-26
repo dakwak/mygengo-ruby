@@ -7,8 +7,9 @@ Gem::Specification.new do |gs|
 		"Ryan McGrath <ryan@mygengo.com>",
 		"Matthew Romaine",
 		"Kim Alhstrom",
-        "Llyod Chan"
-	]
+		"Llyod Chan"
+
+    ]
 	gs.date = "2011-12-22"
 	gs.summary = "A library for interfacing with the myGengo Translation API."
 	gs.description = "myGengo is a service that offers various translation APIs, both machine and high quality human-sourced. The mygengo gem lets you interface with the myGengo REST API (http://mygengo.com/services/api/dev-docs/)."
