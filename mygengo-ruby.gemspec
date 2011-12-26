@@ -8,7 +8,6 @@ Gem::Specification.new do |gs|
 		"Matthew Romaine",
 		"Kim Alhstrom",
 		"Llyod Chan"
-
     ]
 	gs.date = "2011-12-22"
 	gs.summary = "A library for interfacing with the myGengo Translation API."
