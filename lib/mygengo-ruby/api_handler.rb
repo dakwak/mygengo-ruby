@@ -109,6 +109,10 @@ module MyGengo
 		# <tt>endpoint</tt> - String/URL to post data to.
 		# <tt>params</tt> - Data necessary for request (keys, etc). Generally taken care of by the requesting instance.
 		def send_to_mygengo(endpoint, params = {})
+		  
+		  # Check if this is a put
+      is_put = params.delete(:is_put)
+		  
 			query = {
 				:api_key => @opts[:public_key],
 				:data => params.to_json.gsub('"', '\"'),
@@ -117,7 +121,11 @@ module MyGengo
 
 			url = URI.parse("http://#{@api_host}/v#{@opts[:api_version]}/#{endpoint}")
 			http = Net::HTTP.new(url.host, url.port)
-			request = Net::HTTP::Post.new(url.path)
+			if is_put
+			  request = Net::HTTP::Put.new(url.path)
+		  else
+			  request = Net::HTTP::Post.new(url.path)
+		  end
 	
 			request.add_field('Accept', 'application/json')
 			request.add_field('User-Agent', @opts[:user_agent])
@@ -191,6 +199,7 @@ module MyGengo
 		# <tt>id</tt> - The ID of a job to update.
 		# <tt>action</tt> - A hash describing the update to this job. See the examples for further documentation.
 		def updateTranslationJob(params = {})
+		  params[:is_put] = true
 			self.send_to_mygengo('translate/job/:id'.gsub(':id', params.delete(:id).to_s), params)
 		end
 
@@ -200,6 +209,7 @@ module MyGengo
 		# <tt>jobs</tt> - An Array of job objects to update (job objects or ids)
 		# <tt>action</tt> - A String describing the update to this job. "approved", "rejected", etc - see myGengo docs.
 		def updateTranslationJobs(params = {})
+		  params[:is_put] = true
 			self.send_to_mygengo('translate/jobs', {:jobs => params[:jobs], :action => params[:action]})
 		end
 
