@@ -28,7 +28,7 @@ module MyGengo
 				:private_key => '',
 				:api_version => '1.1',
 				:sandbox => false,
-				:user_agent => "myGengo Ruby Library v#{MyGengo::Config::VERSION}",
+				:user_agent => "myGengo Ruby Library; Version #{MyGengo::Config::VERSION}; http://mygengo.com/;",
 				:debug => false,
 			}.merge(opts)
 
