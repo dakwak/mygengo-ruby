@@ -229,9 +229,10 @@ module MyGengo
 		def getTranslationJobs(params = {})
 			if params[:ids] and params[:ids].kind_of?(Array)
 				params[:ids] = params[:ids].map { |i| i.to_s() }.join(',')
+				self.get_from_mygengo('translate/jobs/:ids'.gsub(':ids', params.delete(:ids)))
+			else
+			  self.get_from_mygengo('translate/jobs', params)
 			end
-
-			self.get_from_mygengo('translate/jobs', params)
 		end
 
 		# Pulls a group of jobs that were previously submitted together.
