@@ -93,7 +93,7 @@ module MyGengo
 			json = JSON.parse(resp.body)
 
 			if json['opstat'] != 'ok'
-				raise MyGengo::Exception.new(json['opstat'], json['err']['code'].to_i, json['err']['msg'])
+				raise MyGengo::Exception.new(json['opstat'], json['err']['code'].to_i, json['err']['msg']), "#{json['err']['code']}: #{json['err']['msg']}"
 			end
 
 			# Return it if there are no problems, nice...
@@ -149,7 +149,7 @@ module MyGengo
 					json = JSON.parse(resp.body)
 
 					if json['opstat'] != 'ok'
-						raise MyGengo::Exception.new(json['opstat'], json['err']['code'].to_i, json['err']['msg'])
+						raise MyGengo::Exception.new(json['opstat'], json['err']['code'].to_i, json['err']['msg']), "#{json['err']['code']}: #{json['err']['msg']}"
 					end
 
 					# Return it if there are no problems, nice...
